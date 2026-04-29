@@ -1,0 +1,13 @@
+#!/bin/sh
+/usr/bin/podkop-scanner > /dev/null
+BEST=$(grep -oE '"latency":"[1-9][^"]*".*"raw":"[^"]+"' "/www/podkop_nodes.json" | head -n 1 | sed 's/.*"raw":"//;s/".*//')
+[ -z "$BEST" ] && exit 1
+RESTART=0
+for SEC in $(uci show podkop_manager | grep ".autopilot='1'" | cut -d. -f2); do
+    CUR=$(uci get podkop."$SEC".proxy_string 2>/dev/null)
+    if [ "$CUR" != "$BEST" ]; then
+        uci set podkop."$SEC".proxy_string="$BEST"
+        uci commit podkop; RESTART=1
+    fi
+done
+[ "$RESTART" = "1" ] && /etc/init.d/podkop restart
