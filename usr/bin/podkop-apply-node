@@ -1,0 +1,19 @@
+#!/bin/sh
+VAL="$1"; SEC="$2"; IDX="$3"
+if [ "$SEC" = "SAVE_URL" ]; then
+    U=$(cat /tmp/podkop_new_urls.txt 2>/dev/null | tr "\n" " ")
+    uci set podkop_manager.main.subscription_url="$U"
+    uci commit podkop_manager; /usr/bin/podkop-scanner; exit 0
+fi
+uci get podkop_manager."$SEC" >/dev/null 2>&1 || uci set podkop_manager."$SEC"=manager
+uci set podkop_manager."$SEC".fixed_index="$IDX"
+if [ "$IDX" = "-1" ]; then
+    uci set podkop_manager."$SEC".autopilot='1'
+    RES=$(grep -oE '"latency":"[1-9][^"]*".*"raw":"[^"]+"' /www/podkop_nodes.json | head -n 1 | sed 's/.*"raw":"//;s/".*//')
+else
+    uci set podkop_manager."$SEC".autopilot='0'
+    uci set podkop_manager."$SEC".fixed_node="$VAL"; RES="$VAL"
+fi
+uci set podkop."$SEC".proxy_config_type='url'
+uci set podkop."$SEC".proxy_string="$RES"
+uci commit podkop; uci commit podkop_manager; /etc/init.d/podkop restart
