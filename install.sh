@@ -16,9 +16,23 @@ FILES="usr/bin/podkop-json2vless usr/bin/podkop-scanner usr/bin/podkop-apply-nod
 
 for f in $FILES; do
     echo "Скачивание $f..."
-    curl -L -s -k -o "/$f" "$REPO_URL/$f"
-done
+    # -w "%{http_code}" выведет только код ответа (например, 200) в переменную
+    HTTP_CODE=$(curl -L -s -k -o "/$f" -w "%{http_code}" "$REPO_URL/$f")
 
+    if [ "$HTTP_CODE" -eq 200 ]; then
+        # Дополнительная проверка: не пустой ли файл
+        if [ -s "/$f" ]; then
+            echo "✅ Успешно: /$f"
+        else
+            echo "❌ ОШИБКА: Файл /$f скачался пустым!"
+            exit 1
+        fi
+    else
+        echo "❌ ОШИБКА: Не удалось скачать /$f (Код ответа: $HTTP_CODE)"
+        echo "Проверьте путь в репозитории: $REPO_URL/$f"
+        exit 1
+    fi
+done
 echo "=== Настройка прав и запуск ==="
 chmod +x /usr/bin/podkop-* /usr/libexec/rpcd/podkop-manage
 
