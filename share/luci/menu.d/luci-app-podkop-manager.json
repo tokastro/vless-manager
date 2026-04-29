@@ -1,0 +1,7 @@
+{
+  "admin/services/podkop/manager": {
+    "title": "VLESS Менеджер",
+    "order": 100,
+    "action": { "type": "view", "path": "podkop/servers" }
+  }
+}
