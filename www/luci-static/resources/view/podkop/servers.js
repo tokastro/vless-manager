@@ -2,8 +2,7 @@
 'use ui';
 
 return L.view.extend({
-    // Версия для контроля обновления
-    v: '2.6.1-TABLE',
+    v: '2.7.0-VISIBLE-LINKS',
     callManage: L.rpc.declare({ object: 'podkop-manage', method: 'apply', params: [ 'val', 'sec', 'idx' ] }),
 
     load: function() {
@@ -73,12 +72,12 @@ return L.view.extend({
             configTable.appendChild(L.dom.create('tr', { 'class': 'tr' }, [ L.dom.create('td', { 'class': 'td' }, L.dom.create('strong', {}, sName)), L.dom.create('td', { 'class': 'td' }, sel) ]));
         }, this));
 
-        // ТАБЛИЦА ВСЕХ СЕРВЕРОВ
-        var nodesTable = L.dom.create('table', { 'class': 'table' }, [
+        // ТАБЛИЦА С ВИДИМЫМИ ССЫЛКАМИ
+        var nodesTable = L.dom.create('table', { 'class': 'table', 'style': 'margin-top: 20px; table-layout: fixed; width: 100%' }, [
             L.dom.create('tr', { 'class': 'tr' }, [
-                L.dom.create('th', { 'class': 'th' }, 'Название'),
-                L.dom.create('th', { 'class': 'th', 'style': 'width:100px' }, 'Пинг'),
-                L.dom.create('th', { 'class': 'th', 'style': 'width:100px' }, 'Ссылка')
+                L.dom.create('th', { 'class': 'th', 'style': 'width: 25%' }, 'Название'),
+                L.dom.create('th', { 'class': 'th', 'style': 'width: 10%' }, 'Пинг'),
+                L.dom.create('th', { 'class': 'th', 'style': 'width: 65%' }, 'VLESS Ссылка')
             ])
         ]);
 
@@ -87,7 +86,20 @@ return L.view.extend({
                 L.dom.create('td', { 'class': 'td' }, n.name),
                 L.dom.create('td', { 'class': 'td' }, (parseFloat(n.latency) > 0 ? n.latency + ' ms' : 'error')),
                 L.dom.create('td', { 'class': 'td' }, [
-                    L.dom.create('button', { 'class': 'btn', 'click': L.bind(this.copyToClipboard, this, n.raw) }, 'Copy')
+                    L.dom.create('div', { 
+                        'style': 'display:flex; align-items:center'
+                    }, [
+                        L.dom.create('code', { 
+                            'style': 'flex:1; overflow-x: auto; white-space: nowrap; background: #eee; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; margin-right: 5px; cursor: pointer',
+                            'click': L.bind(this.copyToClipboard, this, n.raw),
+                            'title': 'Нажмите, чтобы скопировать'
+                        }, n.raw),
+                        L.dom.create('button', { 
+                            'class': 'btn', 
+                            'style': 'padding: 0 8px',
+                            'click': L.bind(this.copyToClipboard, this, n.raw) 
+                        }, '📋')
+                    ])
                 ])
             ]));
         }, this));
@@ -107,7 +119,7 @@ return L.view.extend({
                 ])
             ]),
             L.dom.create('div', { 'class': 'cbi-section' }, [ L.dom.create('h3', {}, 'Секции'), configTable ]),
-            L.dom.create('div', { 'class': 'cbi-section' }, [ L.dom.create('h3', {}, 'Список серверов'), nodesTable ])
+            L.dom.create('div', { 'class': 'cbi-section' }, [ L.dom.create('h3', {}, 'Доступные серверы'), nodesTable ])
         ]);
     }
 });
