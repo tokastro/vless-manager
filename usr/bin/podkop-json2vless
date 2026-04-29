@@ -1,0 +1,16 @@
+#!/bin/sh
+INPUT=$(cat)
+OUTPUT=$(echo "$INPUT" | jq -r '.outbounds[] | select(.protocol=="vless") | 
+    "vless://" + .settings.vnext[0].users[0].id + "@" + .settings.vnext[0].address + ":" + (.settings.vnext[0].port|tostring) + 
+    "?encryption=" + .settings.vnext[0].users[0].encryption +
+    (if .settings.vnext[0].users[0].flow and .settings.vnext[0].users[0].flow != "" then "&flow=" + .settings.vnext[0].users[0].flow else "" end) +
+    "&security=" + .streamSettings.security +
+    "&type=" + .streamSettings.network +
+    "&serviceName=" + .streamSettings.grpcSettings.serviceName +
+    "&sni=" + .streamSettings.realitySettings.serverName +
+    "&fp=" + .streamSettings.realitySettings.fingerprint +
+    "&pbk=" + .streamSettings.realitySettings.publicKey +
+    "&sid=" + .streamSettings.realitySettings.shortId +
+    "#" + (if .remarks then .remarks else .tag end | @uri)' 2>/dev/null)
+[ -z "$OUTPUT" ] && exit 1
+echo "$OUTPUT"
