@@ -1,6 +1,6 @@
 #!/bin/sh
 
-REPO_URL="https://githubusercontent.com"
+REPO_URL="https://raw.githubusercontent.com/tokastro/vless-manager/main"
 
 echo "=== Установка зависимостей ==="
 apk update && apk add jq curl ca-bundle
