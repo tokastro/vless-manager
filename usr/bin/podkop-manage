@@ -1,0 +1,10 @@
+#!/bin/sh
+case "$1" in
+    list) echo '{ "apply": { "val": "str", "sec": "str", "idx": "str" } }' ;;
+    call) case "$2" in apply)
+        read -r input
+        V=$(echo "$input" | jq -r .val); S=$(echo "$input" | jq -r .sec); I=$(echo "$input" | jq -r .idx)
+        [ "$S" = "SAVE_URL" ] && echo "$V" | tr ',' '\n' > /tmp/podkop_new_urls.txt
+        /usr/bin/podkop-apply-node "$V" "$S" "$I"; echo '{ "result": "ok" }'
+    ;; esac ;;
+esac
