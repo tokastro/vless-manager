@@ -12,7 +12,7 @@ mkdir -p /usr/share/luci/menu.d
 mkdir -p /usr/share/rpcd/acl.d
 
 # Список файлов для скачивания
-FILES="usr/bin/podkop-json2vless usr/bin/podkop-scanner usr/bin/podkop-apply-node usr/bin/podkop-autopilot usr/libexec/rpcd/podkop-manage www/luci-static/resources/view/podkop/servers.js share/luci/menu.d/luci-app-podkop-manager.json share/rpcd/acl.d/luci-app-podkop-manager.json"
+FILES="usr/bin/podkop-json2vless usr/bin/podkop-scanner usr/bin/podkop-apply-node usr/bin/podkop-autopilot usr/libexec/rpcd/podkop-manage www/luci-static/resources/view/podkop/servers.js usr/share/luci/menu.d/luci-app-podkop-manager.json usr/share/rpcd/acl.d/luci-app-podkop-manager.json"
 
 for f in $FILES; do
     echo "Скачивание $f..."
