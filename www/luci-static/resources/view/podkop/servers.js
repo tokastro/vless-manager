@@ -2,7 +2,8 @@
 'use ui';
 
 return L.view.extend({
-    v: '2.7.0-VISIBLE-LINKS',
+    v: '2.8.0-Add autoupdate',
+    // Объявление системных вызовов через наш RPC-мост
     callManage: L.rpc.declare({ object: 'podkop-manage', method: 'apply', params: [ 'val', 'sec', 'idx' ] }),
 
     load: function() {
@@ -14,6 +15,7 @@ return L.view.extend({
         ]);
     },
 
+    // Функция копирования текста в буфер
     copyToClipboard: function(text) {
         var input = document.createElement('textarea');
         input.value = text;
@@ -24,19 +26,32 @@ return L.view.extend({
         L.ui.addNotification(null, L.dom.create('p', {}, 'Ссылка скопирована!'), 2000);
     },
 
+    // Отрисовка строки для ввода URL подписки
     renderUrlRow: function(container, value) {
         var row = L.dom.create('div', { 'class': 'url-row', 'style': 'display:flex; margin-bottom:4px' }, [
             L.dom.create('input', { 'type': 'text', 'class': 'cbi-input-text url-item', 'style': 'flex:1', 'value': value || '' }),
-            L.dom.create('button', { 'class': 'btn cbi-button-remove', 'style': 'margin-left:4px', 'click': function(ev) { ev.target.closest('.url-row').remove(); } }, '-')
+            L.dom.create('button', { 
+                'class': 'btn cbi-button-remove', 
+                'style': 'margin-left:4px', 
+                'click': function(ev) { ev.target.closest('.url-row').remove(); } 
+            }, '-')
         ]);
         container.appendChild(row);
     },
 
-    handleSave: function() {
+    // Сохранение списка URL
+    handleSaveUrls: function() {
         var urls = []; 
         document.querySelectorAll('.url-item').forEach(function(i) { if(i.value.trim()) urls.push(i.value.trim()); });
-        L.ui.showModal(null, [ L.dom.create('p', { 'class': 'spinning' }, 'Сохранение...') ]);
+        L.ui.showModal(null, [ L.dom.create('p', { 'class': 'spinning' }, 'Обновление подписок...') ]);
         return this.callManage(urls.join(','), 'SAVE_URL', '0').then(function() { window.location.reload(); });
+    },
+
+    // Сохранение настроек Cron (Автопилота)
+    handleCronSave: function(ev) {
+        var val = ev.target.value;
+        L.ui.showModal(null, [ L.dom.create('p', { 'class': 'spinning' }, 'Настройка расписания...') ]);
+        return this.callManage(val, 'SAVE_CRON', '0').then(function() { window.location.reload(); });
     },
 
     render: function(res) {
@@ -44,17 +59,49 @@ return L.view.extend({
         nodes.sort(function(a, b) { return (parseFloat(a.latency) || 999) - (parseFloat(b.latency) || 999); });
         
         var currentUrls = (L.uci.get('podkop_manager', 'main', 'subscription_url') || '').split(/\s+/).filter(function(u) { return u.length > 0; });
+        var cronInterval = L.uci.get('podkop_manager', 'main', 'cron_interval') || '0';
         var pSections = L.uci.sections('podkop', 'section') || [];
 
+        // 1. Блок подписок
         var urlContainer = L.dom.create('div', { 'id': 'url_container' });
         currentUrls.forEach(L.bind(this.renderUrlRow, this, urlContainer));
         if (!currentUrls.length) this.renderUrlRow(urlContainer, '');
 
+        var subBlock = L.dom.create('div', { 'class': 'cbi-section' }, [
+            L.dom.create('div', { 'class': 'cbi-value' }, [
+                L.dom.create('label', { 'class': 'cbi-value-title' }, 'Ссылки подписок'),
+                L.dom.create('div', { 'class': 'cbi-value-field', 'style': 'min-width:400px' }, [
+                    urlContainer,
+                    L.dom.create('div', { 'style': 'margin-top:8px' }, [
+                        L.dom.create('button', { 'class': 'btn cbi-button-add', 'click': L.bind(function() { this.renderUrlRow(urlContainer, ''); }, this) }, '+'),
+                        L.dom.create('button', { 'class': 'btn cbi-button-save', 'style': 'margin-left:8px', 'click': L.bind(this.handleSaveUrls, this) }, 'Обновить всё')
+                    ])
+                ])
+            ])
+        ]);
+
+        // 2. Блок настроек Автопилота (Cron)
+        var cronSelect = L.dom.create('select', { 'class': 'cbi-input-select', 'change': L.bind(this.handleCronSave, this) }, [
+            L.dom.create('option', { 'value': '0', 'selected': (cronInterval === '0' ? 'selected' : null) }, 'Раз в час'),
+            L.dom.create('option', { 'value': '30', 'selected': (cronInterval === '30' ? 'selected' : null) }, 'Раз в 30 минут'),
+            L.dom.create('option', { 'value': '15', 'selected': (cronInterval === '15' ? 'selected' : null) }, 'Раз в 15 минут'),
+            L.dom.create('option', { 'value': '5', 'selected': (cronInterval === '5' ? 'selected' : null) }, 'Раз в 5 минут')
+        ]);
+
+        var autopilotBlock = L.dom.create('div', { 'class': 'cbi-section' }, [
+            L.dom.create('h3', {}, 'Настройки Автопилота'),
+            L.dom.create('div', { 'class': 'cbi-value' }, [
+                L.dom.create('label', { 'class': 'cbi-value-title' }, 'Интервал обновления'),
+                L.dom.create('div', { 'class': 'cbi-value-field' }, [
+                    cronSelect,
+                    L.dom.create('div', { 'class': 'cbi-value-description' }, 'Как часто проверять пинг и переключать "Авто" секции на лучший сервер.')
+                ])
+            ])
+        ]);
+
+        // 3. Таблица управления секциями
         var configTable = L.dom.create('table', { 'class': 'table' }, [ 
-            L.dom.create('tr', { 'class': 'tr' }, [ 
-                L.dom.create('th', { 'class': 'th' }, 'Секция'), 
-                L.dom.create('th', { 'class': 'th' }, 'Выбор сервера') 
-            ]) 
+            L.dom.create('tr', { 'class': 'tr' }, [ L.dom.create('th', { 'class': 'th' }, 'Секция'), L.dom.create('th', { 'class': 'th' }, 'Выбор сервера') ]) 
         ]);
 
         pSections.forEach(L.bind(function(s) {
@@ -63,7 +110,7 @@ return L.view.extend({
             var sel = L.dom.create('select', { 'class': 'cbi-input-select', 'style': 'width: 100%', 'change': L.bind(function(ev) {
                 L.ui.showModal(null, [ L.dom.create('p', { 'class': 'spinning' }, 'Применяю...') ]);
                 this.callManage(ev.target.value, sName, (ev.target.selectedIndex === 0 ? "-1" : ev.target.selectedIndex.toString())).then(function() { window.location.reload(); });
-            }, this) }, [ L.dom.create('option', { 'value': 'auto', 'selected': (savedIdx === -1) ? 'selected' : null }, '-- Автоматически --') ]);
+            }, this) }, [ L.dom.create('option', { 'value': 'auto', 'selected': (savedIdx === -1) ? 'selected' : null }, '-- Автоматически (Fastest) --') ]);
             
             nodes.forEach(function(n, i) { 
                 if (parseFloat(n.latency) > 0) 
@@ -72,8 +119,8 @@ return L.view.extend({
             configTable.appendChild(L.dom.create('tr', { 'class': 'tr' }, [ L.dom.create('td', { 'class': 'td' }, L.dom.create('strong', {}, sName)), L.dom.create('td', { 'class': 'td' }, sel) ]));
         }, this));
 
-        // ТАБЛИЦА С ВИДИМЫМИ ССЫЛКАМИ
-        var nodesTable = L.dom.create('table', { 'class': 'table', 'style': 'margin-top: 20px; table-layout: fixed; width: 100%' }, [
+        // 4. Таблица всех серверов со ссылками
+        var nodesTable = L.dom.create('table', { 'class': 'table', 'style': 'table-layout: fixed; width: 100%' }, [
             L.dom.create('tr', { 'class': 'tr' }, [
                 L.dom.create('th', { 'class': 'th', 'style': 'width: 25%' }, 'Название'),
                 L.dom.create('th', { 'class': 'th', 'style': 'width: 10%' }, 'Пинг'),
@@ -86,39 +133,23 @@ return L.view.extend({
                 L.dom.create('td', { 'class': 'td' }, n.name),
                 L.dom.create('td', { 'class': 'td' }, (parseFloat(n.latency) > 0 ? n.latency + ' ms' : 'error')),
                 L.dom.create('td', { 'class': 'td' }, [
-                    L.dom.create('div', { 
-                        'style': 'display:flex; align-items:center'
-                    }, [
+                    L.dom.create('div', { 'style': 'display:flex; align-items:center' }, [
                         L.dom.create('code', { 
                             'style': 'flex:1; overflow-x: auto; white-space: nowrap; background: #eee; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; margin-right: 5px; cursor: pointer',
-                            'click': L.bind(this.copyToClipboard, this, n.raw),
-                            'title': 'Нажмите, чтобы скопировать'
+                            'click': L.bind(this.copyToClipboard, this, n.raw)
                         }, n.raw),
-                        L.dom.create('button', { 
-                            'class': 'btn', 
-                            'style': 'padding: 0 8px',
-                            'click': L.bind(this.copyToClipboard, this, n.raw) 
-                        }, '📋')
+                        L.dom.create('button', { 'class': 'btn', 'style': 'padding: 0 8px', 'click': L.bind(this.copyToClipboard, this, n.raw) }, '📋')
                     ])
                 ])
             ]));
         }, this));
 
+        // Итоговая сборка страницы
         return L.dom.create('div', { 'class': 'cbi-map' }, [
-            L.dom.create('h2', {}, 'VLESS Менеджер [' + this.v + ']'),
-            L.dom.create('div', { 'class': 'cbi-section' }, [
-                L.dom.create('div', { 'class': 'cbi-value' }, [
-                    L.dom.create('label', { 'class': 'cbi-value-title' }, 'Подписки'),
-                    L.dom.create('div', { 'class': 'cbi-value-field' }, [
-                        urlContainer,
-                        L.dom.create('div', { 'style': 'margin-top:8px' }, [
-                            L.dom.create('button', { 'class': 'btn cbi-button-add', 'click': L.bind(function() { this.renderUrlRow(urlContainer, ''); }, this) }, '+'),
-                            L.dom.create('button', { 'class': 'btn cbi-button-save', 'style': 'margin-left:8px', 'click': L.bind(this.handleSave, this) }, 'Обновить всё')
-                        ])
-                    ])
-                ])
-            ]),
-            L.dom.create('div', { 'class': 'cbi-section' }, [ L.dom.create('h3', {}, 'Секции'), configTable ]),
+            L.dom.create('h2', {}, 'VLESS Менеджер'),
+            subBlock,
+            autopilotBlock,
+            L.dom.create('div', { 'class': 'cbi-section' }, [ L.dom.create('h3', {}, 'Секции Podkop'), configTable ]),
             L.dom.create('div', { 'class': 'cbi-section' }, [ L.dom.create('h3', {}, 'Доступные серверы'), nodesTable ])
         ]);
     }
