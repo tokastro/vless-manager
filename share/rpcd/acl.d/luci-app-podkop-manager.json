@@ -1,0 +1,13 @@
+{
+    "luci-app-podkop-manager": {
+        "read": {
+            "file": { "/www/podkop_nodes.json": [ "read" ] },
+            "ubus": { "podkop-manage": [ "apply" ], "file": [ "read" ], "uci": [ "get", "load" ] },
+            "uci": [ "podkop_manager", "podkop" ],
+            "luci": [ "admin/services/podkop/manager" ]
+        },
+        "write": {
+            "ubus": { "podkop-manage": [ "apply" ] }
+        }
+    }
+}
