@@ -23,3 +23,5 @@ servers.js — Веб-интерфейс (LuCI View).
 podkop-scanner — Скрипт загрузки и анализа серверов.
 podkop-apply-node — Логика применения настроек.
 podkop-autopilot — Фоновый процесс для расписания.
+Установка:
+curl -L -s -k "https://raw.githubusercontent.com/tokastro/vless-manager/main/install.sh" -o /tmp/install.sh && sh /tmp/install.sh
